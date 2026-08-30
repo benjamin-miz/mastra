@@ -2000,7 +2000,9 @@ export class Workflow<
     const id =
       options?.id ||
       `sleep_${this.#mastra?.generateId({ idType: 'step', source: 'workflow', entityId: this.id, stepType: 'sleep' }) || randomUUID()}`;
-    const displayFields = toEntryOptionFields(options);
+    // Only the display fields: `id` is spelled explicitly from the normalized
+    // value above, so a falsy caller id can never override the generated one.
+    const displayFields = toEntryOptionFields({ description: options?.description, metadata: options?.metadata });
 
     const opts: StepFlowEntry<TEngineType> =
       typeof duration === 'function'
@@ -2048,7 +2050,9 @@ export class Workflow<
     const id =
       options?.id ||
       `sleep_${this.#mastra?.generateId({ idType: 'step', source: 'workflow', entityId: this.id, stepType: 'sleep-until' }) || randomUUID()}`;
-    const displayFields = toEntryOptionFields(options);
+    // Only the display fields: `id` is spelled explicitly from the normalized
+    // value above, so a falsy caller id can never override the generated one.
+    const displayFields = toEntryOptionFields({ description: options?.description, metadata: options?.metadata });
     const opts: StepFlowEntry<TEngineType> =
       typeof date === 'function'
         ? { type: 'sleepUntil', id, ...displayFields, fn: date }
@@ -2533,7 +2537,11 @@ export class Workflow<
       type: 'foreach',
       ...entryOptionFields,
       step: toSingleStepEntry(foreachStep),
-      opts: { concurrency },
+      // Keep the caller's options object BY REFERENCE: the agentic execution
+      // workflow mutates `concurrency` on it between build and execution
+      // (see createAgenticExecutionWorkflow's map-tool-calls step). Snapshotting
+      // here would freeze tool-call parallelism at its conservative initial value.
+      opts: (opts as ForeachOptions | undefined) ?? { concurrency: 1 },
     });
     this.serializedStepFlow.push({
       type: 'foreach',
